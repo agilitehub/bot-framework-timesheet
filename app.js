@@ -22,7 +22,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
     console.log("--MESSAGE");
     console.log(session.message.type + " - " + session.message.text);
     console.log("--USER");
-    console.log(session.message.address.user);
+    console.log(session.message.user);
 
     //Check if we need to run LUIS on the message
     if(!session.privateConversationData.disableLuis){
@@ -42,7 +42,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
                     session.beginDialog(intents[0].intent, {intent:intents[0], entities});
                 }else{
                     //Return Exception
-                    session.send(Enums.BOT_EXCEPTION_RESPONSES[_.random(Enums.BOT_EXCEPTION_RESPONSES.length - 1)], session.message.address.user);
+                    session.send(mustache.render(Enums.BOT_EXCEPTION_RESPONSES[_.random(Enums.BOT_EXCEPTION_RESPONSES.length - 1)], session.message.user));
                 }
             }
         });
@@ -132,10 +132,14 @@ bot.dialog('new_timesheet', [
                 session.privateConversationData.disableLuis = true;
                 timesheet.questionType = "description";
                 builder.Prompts.text(session, "Can you provide me with a description of the work done?");
+            }else if(timesheet.questionType !== "confirm_prompt" && timesheet.questionType !== "confirm_other"){
+                session.privateConversationData.disableLuis = true;
+                timesheet.questionType = "confirm_prompt";
+                next();
             }else{
                 session.privateConversationData.disableLuis = true;
-                timesheet.questionType = "confirm";
-                next();
+                timesheet.questionType = "confirm_other";
+                next();    
             }
         }else{
             //Determine Next Dialog
@@ -151,10 +155,14 @@ bot.dialog('new_timesheet', [
                 session.privateConversationData.disableLuis = true;
                 timesheet.questionType = "description";
                 builder.Prompts.text(session, "Can you provide me with a description of the work done?");
+            }else if(timesheet.questionType !== "confirm_prompt" && timesheet.questionType !== "confirm_other"){
+                session.privateConversationData.disableLuis = true;
+                timesheet.questionType = "confirm_prompt";
+                next();
             }else{
                 session.privateConversationData.disableLuis = true;
-                timesheet.questionType = "confirm";
-                next();
+                timesheet.questionType = "confirm_other";
+                next();    
             }
         }
     },
@@ -230,73 +238,40 @@ bot.dialog('new_timesheet', [
     function (session, args, next) {//Confirm Timesheet
         let timesheet = session.privateConversationData.timesheet;
 
-        if(timesheet.questionType === "confirm"){
+        if(timesheet.questionType === "confirm_prompt"){
+            var msg = new builder.Message(session)
+            .addAttachment(_generateTimesheetConfirmCard(timesheet));
+            session.send(msg);
+        }else if(timesheet.questionType === "confirm_other"){
             if(session.message.value && session.message.value.value){
                 if(session.message.value.value === "action_yes"){
                     next();
                 }else{
                     session.endConversation("Timesheet Cancelled!");
                 }
-            }else{
-                var msg = new builder.Message(session)
-                .addAttachment({
-                    contentType: "application/vnd.microsoft.card.adaptive",
-                    content: {
-                        type: "AdaptiveCard",
-                           body: [
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Timesheet Confirmation",
-                                    "size": "large",
-                                    "weight": "bolder"
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Date: " + timesheet.data.date
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Client: " + timesheet.data.client
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Type of Work: " + timesheet.data.typeOfWork
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Hours Spent: " + timesheet.data.hoursSpent
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Hours Billed: " + timesheet.data.hoursBilled
-                                },
-                                {
-                                    "type": "TextBlock",
-                                    "text": "Description: " + timesheet.data.description
-                                }
-                            ],
-                            "actions": [
-                                {
-                                    "type": "Action.Submit",
-                                    "title": "Yes",
-                                    "data": {
-                                        "value": "action_yes"
-                                    }
-                                },
-                                {
-                                    "type": "Action.Submit",
-                                    "title": "No",
-                                    "data": {
-                                        "value": "action_no"
-                                    }
-                                }
-                            ]
+            }else if(session.message.text && session.message.text !== ""){
+                builder.LuisRecognizer.recognize(session.message.text, Enums.CONfIG_LUIS.appUrl, function(err, intents, entities){
+                    if(entities.length > 0){
+                        if(entities[0].resolution.values[0] === "action_yes"){
+                           next();
+                        }else if(entities[0].resolution.values[0] === "action_no"){
+                            session.endConversation("Timesheet Cancelled!");
+                        }else{
+                            var msg = new builder.Message(session)
+                            .addAttachment(_generateTimesheetConfirmCard(timesheet));
+                            session.send(msg);
+                        }
+                    }else{
+                        var msg = new builder.Message(session)
+                        .addAttachment(_generateTimesheetConfirmCard(timesheet));
+                        session.send(msg);                    
                     }
                 });
-    
+            }else{
+                var msg = new builder.Message(session)
+                .addAttachment(_generateTimesheetConfirmCard(timesheet));
                 session.send(msg);
             }
-
         }else{
             next();
         }
@@ -307,9 +282,81 @@ bot.dialog('new_timesheet', [
 ])
 
 bot.dialog('greeting', function (session, args) {
-    session.endConversation(mustache.render(Enums.BOT_GREETING_RESPONSES[_.random(Enums.BOT_GREETING_RESPONSES.length - 1)], session.message.address.user));
+    session.endConversation(mustache.render(Enums.BOT_GREETING_RESPONSES[_.random(Enums.BOT_GREETING_RESPONSES.length - 1)], session.message.user));
 })
 
 bot.dialog('cancel_process', function (session, args) {   
-    session.endConversation(mustache.render(Enums.BOT_CANCEL_RESPONSES[_.random(Enums.BOT_CANCEL_RESPONSES.length - 1)], session.message.address.user));
+    session.endConversation(mustache.render(Enums.BOT_CANCEL_RESPONSES[_.random(Enums.BOT_CANCEL_RESPONSES.length - 1)], session.message.user));
 })
+
+//PRIVATE FUNCTIONS
+var _generateTimesheetConfirmCard = function(timesheet){
+    var msg = {
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            type: "AdaptiveCard",
+            version: "1.0",
+               body: [
+                   {
+                       type: "Container",
+                       items:[
+                            {
+                                "type": "TextBlock",
+                                "text": "Timesheet Confirmation",
+                                "size": "large",
+                                "weight": "bolder"
+                            },
+                            {
+                                type: "FactSet",
+                                facts: [
+                                    {
+                                        title: "Date",
+                                        value: timesheet.data.date
+                                    },
+                                    {
+                                        title: "Client",
+                                        value: timesheet.data.client
+                                    },
+                                    {
+                                        title: "Type of Work",
+                                        value: timesheet.data.typeOfWork
+                                    },
+                                    {
+                                        title: "Hours Spent",
+                                        value: timesheet.data.hoursSpent
+                                    },
+                                    {
+                                        title: "Hours Billed",
+                                        value: timesheet.data.hoursBilled
+                                    },
+                                    {
+                                        title: "Description",
+                                        value: timesheet.data.description
+                                    }
+                                ]
+                            }
+                       ]
+                   }
+                ],
+                "actions": [
+                    {
+                        "type": "Action.Submit",
+                        "title": "Yes",
+                        "data": {
+                            "value": "action_yes"
+                        }
+                    },
+                    {
+                        "type": "Action.Submit",
+                        "title": "No",
+                        "data": {
+                            "value": "action_no"
+                        }
+                    }
+                ]
+        }
+    }
+
+    return msg;
+};

@@ -1,6 +1,6 @@
 {
   "name": "timesheet-bot",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Bot Builder middleware for interfacing with Agilit-e's Demo Timesheet App",
   "main": "app.js",
   "scripts": {

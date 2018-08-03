@@ -1,0 +1,14 @@
+{
+    "name": "timesheet-bot",
+    "secretKey": "",
+    "services": [
+        {
+            "type": "endpoint",
+            "name": "timesheet-bot",
+            "id": "http://localhost:6022/api/messages",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:6022/api/messages"
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "timesheet-bot",
+  "version": "1.0.6",
+  "description": "Bot Builder middleware for interfacing with Agilit-e's Demo Timesheet App",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "author": "Agilit-e",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "3.5.1",
+    "botbuilder": "3.15.0",
+    "botbuilder-ai": "4.0.0-preview1.2",
+    "botbuilder-dialogs": "4.0.0-preview1.2",
+    "dotenv": "6.0.0",
+    "lodash": "4.17.10",
+    "mustache": "2.3.0",
+    "restify": "7.2.1"
+  }
+}
